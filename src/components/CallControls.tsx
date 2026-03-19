@@ -1,26 +1,35 @@
+import { CreatureType } from '../hooks/useJellyfish'
+
 interface CallControlsProps {
   localIsMuted: boolean
   localCameraOff: boolean
   onToggleMute: () => void
   onToggleCamera: () => void
-  onSpawnJellyfish: () => void
+  onSpawnCreature: (type: CreatureType) => void
   onLeave: () => void
 }
+
+const CREATURE_BUTTONS: { type: CreatureType; emoji: string; label: string }[] =
+  [
+    { type: 'jellyfish', emoji: '🪼', label: 'Release a jellyfish!' },
+    { type: 'seahorse', emoji: '🦑', label: 'Release a seahorse!' },
+    { type: 'fish', emoji: '🐠', label: 'Release a fish!' },
+  ]
 
 export default function CallControls({
   localIsMuted,
   localCameraOff,
   onToggleMute,
   onToggleCamera,
-  onSpawnJellyfish,
+  onSpawnCreature,
   onLeave,
 }: CallControlsProps) {
   return (
-    <div className="flex items-center justify-center gap-3 p-4">
+    <div className="flex items-center justify-center gap-2 sm:gap-3 p-4">
       {/* Mute */}
       <button
         onClick={onToggleMute}
-        className={`w-12 h-12 rounded-full flex items-center justify-center text-lg transition-colors ${
+        className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-lg transition-colors ${
           localIsMuted
             ? 'bg-jelly-red text-white'
             : 'bg-white/10 text-white hover:bg-white/20'
@@ -33,7 +42,7 @@ export default function CallControls({
       {/* Camera */}
       <button
         onClick={onToggleCamera}
-        className={`w-12 h-12 rounded-full flex items-center justify-center text-lg transition-colors ${
+        className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-lg transition-colors ${
           localCameraOff
             ? 'bg-jelly-red text-white'
             : 'bg-white/10 text-white hover:bg-white/20'
@@ -43,19 +52,22 @@ export default function CallControls({
         {localCameraOff ? '📷' : '📹'}
       </button>
 
-      {/* Jellyfish! */}
-      <button
-        onClick={onSpawnJellyfish}
-        className="w-14 h-14 rounded-full flex items-center justify-center text-2xl bg-jelly-blue/30 hover:bg-jelly-blue/50 transition-colors border-2 border-jelly-blue/40 active:scale-90 transition-transform"
-        title="Release a jellyfish!"
-      >
-        🪼
-      </button>
+      {/* Creature buttons */}
+      {CREATURE_BUTTONS.map(({ type, emoji, label }) => (
+        <button
+          key={type}
+          onClick={() => onSpawnCreature(type)}
+          className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-xl sm:text-2xl bg-jelly-blue/20 hover:bg-jelly-blue/40 transition-colors border-2 border-jelly-blue/30 active:scale-90"
+          title={label}
+        >
+          {emoji}
+        </button>
+      ))}
 
       {/* Leave */}
       <button
         onClick={onLeave}
-        className="w-12 h-12 rounded-full flex items-center justify-center bg-jelly-red hover:bg-red-600 text-white text-sm font-medium transition-colors"
+        className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-jelly-red hover:bg-red-600 text-white text-sm font-medium transition-colors"
         title="Leave call"
       >
         ✕

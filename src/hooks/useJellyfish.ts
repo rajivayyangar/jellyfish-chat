@@ -1,75 +1,86 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { DailyCall } from '@daily-co/daily-js'
 
-export interface Jellyfish {
-  id: string
-  x: number // starting x position (0-100 vw%)
-  y: number // starting y position (starts at bottom)
-  createdAt: number
-  // Each jellyfish gets a random sequence of drift segments
-  segments: { dx: number; dy: number; duration: number }[]
-  size: number // 28-48px
+export type CreatureType = 'jellyfish' | 'seahorse' | 'fish'
+
+export const CREATURE_EMOJI: Record<CreatureType, string> = {
+  jellyfish: '🪼',
+  seahorse: '🦑',
+  fish: '🐠',
 }
 
-let jellyfishCounter = 0
+export interface Creature {
+  id: string
+  type: CreatureType
+  x: number
+  y: number
+  createdAt: number
+  segments: { dx: number; dy: number; duration: number }[]
+  size: number
+}
 
-function createJellyfish(): Jellyfish {
-  const id = `jf-${Date.now()}-${jellyfishCounter++}`
-  const x = 10 + Math.random() * 80 // 10-90% from left
-  const y = 85 + Math.random() * 10 // start near bottom
+let creatureCounter = 0
 
-  // Generate 3-5 drift segments
+function createCreature(type: CreatureType): Creature {
+  const id = `cr-${Date.now()}-${creatureCounter++}`
+  const x = 10 + Math.random() * 80
+  const y = 85 + Math.random() * 10
+
   const numSegments = 3 + Math.floor(Math.random() * 3)
-  const segments: Jellyfish['segments'] = []
+  const segments: Creature['segments'] = []
   for (let i = 0; i < numSegments; i++) {
     segments.push({
-      dx: (Math.random() - 0.5) * 30, // drift -15 to +15 vw%
-      dy: -(5 + Math.random() * 15), // drift upward 5-20 vh%
-      duration: 2 + Math.random() * 2, // 2-4 seconds per segment
+      dx: (Math.random() - 0.5) * 30,
+      dy: -(5 + Math.random() * 15),
+      duration: 2 + Math.random() * 2,
     })
   }
 
   const size = 28 + Math.random() * 20
 
-  return { id, x, y, createdAt: Date.now(), segments, size }
+  return { id, type, x, y, createdAt: Date.now(), segments, size }
 }
 
-export function useJellyfish(callObject: DailyCall | null) {
-  const [jellies, setJellies] = useState<Jellyfish[]>([])
+export function useCreatures(callObject: DailyCall | null) {
+  const [creatures, setCreatures] = useState<Creature[]>([])
   const cleanupTimers = useRef<Map<string, number>>(new Map())
 
-  const addJellyfish = useCallback((jf: Jellyfish) => {
-    setJellies((prev) => [...prev, jf])
+  const addCreature = useCallback((c: Creature) => {
+    setCreatures((prev) => [...prev, c])
 
-    // Calculate total duration from segments
-    const totalDuration = jf.segments.reduce((sum, s) => sum + s.duration, 0)
-    const lifetime = totalDuration * 1000 + 1000 // extra second for fade
+    const totalDuration = c.segments.reduce((sum, s) => sum + s.duration, 0)
+    const lifetime = totalDuration * 1000 + 1000
 
     const timer = window.setTimeout(() => {
-      setJellies((prev) => prev.filter((j) => j.id !== jf.id))
-      cleanupTimers.current.delete(jf.id)
+      setCreatures((prev) => prev.filter((j) => j.id !== c.id))
+      cleanupTimers.current.delete(c.id)
     }, lifetime)
 
-    cleanupTimers.current.set(jf.id, timer)
+    cleanupTimers.current.set(c.id, timer)
   }, [])
 
-  const spawnJellyfish = useCallback(() => {
-    const jf = createJellyfish()
-    addJellyfish(jf)
+  const spawnCreature = useCallback(
+    (type: CreatureType) => {
+      const c = createCreature(type)
+      addCreature(c)
 
-    // Broadcast to other participant
-    if (callObject) {
-      callObject.sendAppMessage({ type: 'jellyfish', jellyfish: jf }, '*')
-    }
-  }, [callObject, addJellyfish])
+      if (callObject) {
+        callObject.sendAppMessage({ type: 'creature', creature: c }, '*')
+      }
+    },
+    [callObject, addCreature],
+  )
 
-  // Listen for incoming jellyfish from other participant
   useEffect(() => {
     if (!callObject) return
 
     const handler = (event: any) => {
+      if (event?.data?.type === 'creature') {
+        addCreature(event.data.creature)
+      }
+      // backwards compat with old jellyfish messages
       if (event?.data?.type === 'jellyfish') {
-        addJellyfish(event.data.jellyfish)
+        addCreature({ ...event.data.jellyfish, type: 'jellyfish' })
       }
     }
 
@@ -77,14 +88,13 @@ export function useJellyfish(callObject: DailyCall | null) {
     return () => {
       callObject.off('app-message', handler)
     }
-  }, [callObject, addJellyfish])
+  }, [callObject, addCreature])
 
-  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       cleanupTimers.current.forEach((timer) => clearTimeout(timer))
     }
   }, [])
 
-  return { jellies, spawnJellyfish }
+  return { creatures, spawnCreature }
 }

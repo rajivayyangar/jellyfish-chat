@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useDailyCall } from './hooks/useDailyCall'
-import { useJellyfish } from './hooks/useJellyfish'
+import { useCreatures } from './hooks/useJellyfish'
 import { useRemoteAudio } from './hooks/useRemoteAudio'
 import VideoTile from './components/VideoTile'
 import CallControls from './components/CallControls'
@@ -82,7 +82,7 @@ function CallScreen({
     callObject,
   } = useDailyCall(roomUrl, userName)
 
-  const { jellies, spawnJellyfish } = useJellyfish(callObject)
+  const { creatures, spawnCreature } = useCreatures(callObject)
   useRemoteAudio(callObject)
 
   const handleLeave = useCallback(() => {
@@ -137,12 +137,12 @@ function CallScreen({
         localCameraOff={localCameraOff}
         onToggleMute={toggleMute}
         onToggleCamera={toggleCamera}
-        onSpawnJellyfish={spawnJellyfish}
+        onSpawnCreature={spawnCreature}
         onLeave={handleLeave}
       />
 
       {/* Jellyfish overlay */}
-      <JellyfishOverlay jellies={jellies} />
+      <JellyfishOverlay creatures={creatures} />
     </div>
   )
 }

@@ -1,21 +1,21 @@
 import { useEffect, useState } from 'react'
-import { Jellyfish } from '../hooks/useJellyfish'
+import { Creature, CREATURE_EMOJI } from '../hooks/useJellyfish'
 
-interface JellyfishOverlayProps {
-  jellies: Jellyfish[]
+interface Props {
+  creatures: Creature[]
 }
 
-interface AnimatedJellyfishProps {
-  jf: Jellyfish
-}
+function AnimatedCreature({ c }: { c: Creature }) {
+  const emoji = CREATURE_EMOJI[c.type] || '🪼'
+  const totalDuration = c.segments.reduce((sum, s) => sum + s.duration, 0)
 
-function AnimatedJellyfish({ jf }: AnimatedJellyfishProps) {
   const [style, setStyle] = useState<React.CSSProperties>({
     position: 'fixed',
-    left: `${jf.x}vw`,
-    top: `${jf.y}vh`,
-    fontSize: `${jf.size}px`,
+    left: `${c.x}vw`,
+    top: `${c.y}vh`,
+    fontSize: `${c.size}px`,
     opacity: 0,
+    transform: 'scale(0.67)',
     transition: 'none',
     pointerEvents: 'none',
     zIndex: 9999,
@@ -23,33 +23,43 @@ function AnimatedJellyfish({ jf }: AnimatedJellyfishProps) {
   })
 
   useEffect(() => {
-    let currentX = jf.x
-    let currentY = jf.y
+    let currentX = c.x
+    let currentY = c.y
     let segmentIndex = 0
     const timers: number[] = []
 
-    // Fade in
+    // Fade in + start growing
     const fadeInTimer = window.setTimeout(() => {
       setStyle((prev) => ({
         ...prev,
         opacity: 0.85,
+        transform: 'scale(0.67)',
         transition: 'opacity 0.8s ease-in',
       }))
     }, 50)
     timers.push(fadeInTimer)
 
-    // Start drifting after fade-in
-    let elapsed = 800 // after fade-in
+    // Grow to full size over first ~3 seconds
+    const growTimer = window.setTimeout(() => {
+      setStyle((prev) => ({
+        ...prev,
+        transform: 'scale(1)',
+        transition: `${prev.transition}, transform 3s ease-out`,
+      }))
+    }, 300)
+    timers.push(growTimer)
 
-    for (const segment of jf.segments) {
+    let elapsed = 800
+
+    for (const segment of c.segments) {
       const targetX = currentX + segment.dx
       const targetY = currentY + segment.dy
       const dur = segment.duration
+      const isLast = segmentIndex === c.segments.length - 1
 
       const capturedX = targetX
       const capturedY = targetY
       const capturedDur = dur
-      const isLast = segmentIndex === jf.segments.length - 1
 
       const timer = window.setTimeout(() => {
         setStyle((prev) => ({
@@ -57,7 +67,7 @@ function AnimatedJellyfish({ jf }: AnimatedJellyfishProps) {
           left: `${capturedX}vw`,
           top: `${capturedY}vh`,
           opacity: isLast ? 0 : 0.85,
-          transition: `left ${capturedDur}s ease-in-out, top ${capturedDur}s ease-in-out, opacity ${isLast ? capturedDur : 0.3}s ease-in-out`,
+          transition: `left ${capturedDur}s ease-in-out, top ${capturedDur}s ease-in-out, opacity ${isLast ? capturedDur : 0.3}s ease-in-out, transform 3s ease-out`,
         }))
       }, elapsed)
       timers.push(timer)
@@ -71,23 +81,22 @@ function AnimatedJellyfish({ jf }: AnimatedJellyfishProps) {
     return () => {
       timers.forEach((t) => clearTimeout(t))
     }
-  }, [jf])
+  }, [c])
 
-  // Gentle pulsing bob via CSS animation
+  const bobDuration = 1.5 + Math.random() * 1
+  const bobAnimation =
+    c.type === 'fish'
+      ? `fishSwim ${bobDuration}s ease-in-out infinite alternate`
+      : `jellyBob ${bobDuration}s ease-in-out infinite alternate`
+
   return (
     <div style={style}>
-      <div
-        style={{
-          animation: `jellyBob ${1.5 + Math.random() * 1}s ease-in-out infinite alternate`,
-        }}
-      >
-        🪼
-      </div>
+      <div style={{ animation: bobAnimation }}>{emoji}</div>
     </div>
   )
 }
 
-export default function JellyfishOverlay({ jellies }: JellyfishOverlayProps) {
+export default function JellyfishOverlay({ creatures }: Props) {
   return (
     <>
       <style>{`
@@ -95,9 +104,13 @@ export default function JellyfishOverlay({ jellies }: JellyfishOverlayProps) {
           0% { transform: translateY(0px) rotate(-5deg); }
           100% { transform: translateY(-8px) rotate(5deg); }
         }
+        @keyframes fishSwim {
+          0% { transform: translateY(0px) translateX(-3px) rotate(-3deg); }
+          100% { transform: translateY(-4px) translateX(3px) rotate(3deg); }
+        }
       `}</style>
-      {jellies.map((jf) => (
-        <AnimatedJellyfish key={jf.id} jf={jf} />
+      {creatures.map((c) => (
+        <AnimatedCreature key={c.id} c={c} />
       ))}
     </>
   )
