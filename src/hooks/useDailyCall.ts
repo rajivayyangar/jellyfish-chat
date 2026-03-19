@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import DailyIframe, { DailyCall, DailyParticipant } from '@daily-co/daily-js'
+import { extractVideoTrack } from './dailyUtils'
 
 export interface Participant {
   sessionId: string
@@ -8,15 +9,6 @@ export interface Participant {
   audio: boolean
   video: boolean
   videoTrack: MediaStreamTrack | null
-}
-
-function extractVideoTrack(p: DailyParticipant): MediaStreamTrack | null {
-  return (
-    (p as any).videoTrack ??
-    p.tracks?.video?.persistentTrack ??
-    p.tracks?.video?.track ??
-    null
-  )
 }
 
 function toParticipant(p: DailyParticipant): Participant {
@@ -70,8 +62,6 @@ export function useDailyCall(roomUrl: string | null, userName: string) {
 
   useEffect(() => {
     if (!roomUrl || !userName) return
-
-    // Prevent duplicate call objects (React StrictMode double-mount)
     if (callRef.current) return
 
     destroyedRef.current = false
@@ -86,11 +76,10 @@ export function useDailyCall(roomUrl: string | null, userName: string) {
       setIsJoined(false)
       setParticipants([])
     })
+    // participant-updated covers track changes too, no need for track-started/stopped
     co.on('participant-updated', syncLocalState)
     co.on('participant-joined', refreshParticipants)
     co.on('participant-left', refreshParticipants)
-    co.on('track-started', refreshParticipants)
-    co.on('track-stopped', refreshParticipants)
 
     co.join({ url: roomUrl, userName })
 
@@ -110,10 +99,6 @@ export function useDailyCall(roomUrl: string | null, userName: string) {
     callRef.current?.setLocalVideo(localCameraOff)
   }, [localCameraOff])
 
-  const sendAppMessage = useCallback((data: unknown) => {
-    callRef.current?.sendAppMessage(data, '*')
-  }, [])
-
   return {
     participants,
     isJoined,
@@ -121,7 +106,6 @@ export function useDailyCall(roomUrl: string | null, userName: string) {
     localCameraOff,
     toggleMute,
     toggleCamera,
-    sendAppMessage,
     callObject: callRef.current,
   }
 }

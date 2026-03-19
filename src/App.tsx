@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { useDailyCall } from './hooks/useDailyCall'
 import { useCreatures } from './hooks/useJellyfish'
 import { useRemoteAudio } from './hooks/useRemoteAudio'
@@ -44,7 +44,7 @@ function LobbyScreen({
 }: {
   onJoin: (name: string, room: string) => void
 }) {
-  const [room] = useState(ROOM_URL || '')
+  const [room, setRoom] = useState(ROOM_URL || '')
   const [ellieAnimating, setEllieAnimating] = useState(false)
   const ellieRef = useRef<HTMLButtonElement>(null)
 
@@ -106,7 +106,8 @@ function LobbyScreen({
           <input
             type="text"
             placeholder="Daily.co room URL"
-            defaultValue={room}
+            value={room}
+            onChange={(e) => setRoom(e.target.value)}
             className="w-full px-4 py-3 rounded-xl bg-white/10 text-white placeholder-white/40 outline-none focus:ring-2 focus:ring-jelly-blue/50 text-center text-sm"
           />
         )}
@@ -138,10 +139,6 @@ function CallScreen({
   useRemoteAudio(callObject)
   const speaking = useAudioLevels(callObject)
 
-  const handleLeave = useCallback(() => {
-    onLeave()
-  }, [onLeave])
-
   if (!isJoined) {
     return (
       <div className="h-full flex items-center justify-center bg-jelly-dark">
@@ -161,20 +158,18 @@ function CallScreen({
       {/* Video area */}
       <div className="flex-1 relative overflow-hidden p-3">
         {/* Remote participant (main view) or waiting message */}
-        <div className="w-full h-full">
-          {remoteParticipant ? (
-            <VideoTile participant={remoteParticipant} isSpeaking={speaking[remoteParticipant.sessionId]} />
-          ) : (
-            <div className="w-full h-full rounded-2xl bg-jelly-dark/50 border border-white/5 flex items-center justify-center">
-              <div className="text-center space-y-3">
-                <div className="text-4xl">🪼</div>
-                <p className="text-jelly-blue/50 text-sm">
-                  Waiting for the other jellyfish...
-                </p>
-              </div>
+        {remoteParticipant ? (
+          <VideoTile participant={remoteParticipant} isSpeaking={speaking[remoteParticipant.sessionId]} />
+        ) : (
+          <div className="w-full h-full rounded-2xl bg-jelly-dark/50 border border-white/5 flex items-center justify-center">
+            <div className="text-center space-y-3">
+              <div className="text-4xl">🪼</div>
+              <p className="text-jelly-blue/50 text-sm">
+                Waiting for the other jellyfish...
+              </p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Local participant (picture-in-picture) */}
         {localParticipant && (
@@ -191,7 +186,7 @@ function CallScreen({
         onToggleMute={toggleMute}
         onToggleCamera={toggleCamera}
         onSpawnCreature={spawnCreature}
-        onLeave={handleLeave}
+        onLeave={onLeave}
       />
 
       {/* Jellyfish overlay */}

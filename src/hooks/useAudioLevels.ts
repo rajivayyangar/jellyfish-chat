@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { DailyCall } from '@daily-co/daily-js'
+import { extractAudioTrack } from './dailyUtils'
 
 const NOISE_GATE = 0.015
 const HOLD_MS = 300
@@ -15,7 +16,9 @@ export function useAudioLevels(callObject: DailyCall | null) {
     Map<string, { analyser: AnalyserNode; source: MediaStreamAudioSourceNode }>
   >(new Map())
   const lastActiveRef = useRef<Record<string, number>>({})
+  const prevSpeakingRef = useRef<Record<string, boolean>>({})
   const rafRef = useRef<number>(0)
+  const bufferRef = useRef<Uint8Array | null>(null)
 
   useEffect(() => {
     if (!callObject) return
@@ -27,16 +30,14 @@ export function useAudioLevels(callObject: DailyCall | null) {
       const all = callObject.participants()
       const currentIds = new Set<string>()
 
-      for (const [key, p] of Object.entries(all)) {
+      for (const [, p] of Object.entries(all)) {
         const sid = p.session_id
         currentIds.add(sid)
 
-        const audioTrack =
-          p.tracks?.audio?.persistentTrack ?? p.tracks?.audio?.track ?? null
+        const audioTrack = extractAudioTrack(p)
 
         if (audioTrack && audioTrack.readyState === 'live') {
-          const existing = analysersRef.current.get(sid)
-          if (existing) continue
+          if (analysersRef.current.has(sid)) continue
 
           try {
             const stream = new MediaStream([audioTrack])
@@ -45,13 +46,16 @@ export function useAudioLevels(callObject: DailyCall | null) {
             analyser.fftSize = 256
             source.connect(analyser)
             analysersRef.current.set(sid, { analyser, source })
+
+            if (!bufferRef.current) {
+              bufferRef.current = new Uint8Array(256)
+            }
           } catch {
             // track may not be usable yet
           }
         }
       }
 
-      // Clean up departed participants
       analysersRef.current.forEach((val, sid) => {
         if (!currentIds.has(sid)) {
           val.source.disconnect()
@@ -63,28 +67,37 @@ export function useAudioLevels(callObject: DailyCall | null) {
 
     const tick = () => {
       const now = Date.now()
-      const next: Record<string, boolean> = {}
+      const buffer = bufferRef.current
+      let changed = false
 
       analysersRef.current.forEach((val, sid) => {
-        const data = new Uint8Array(val.analyser.fftSize)
-        val.analyser.getByteTimeDomainData(data)
+        if (!buffer) return
+        val.analyser.getByteTimeDomainData(buffer)
 
         let sum = 0
-        for (let i = 0; i < data.length; i++) {
-          const sample = (data[i] - 128) / 128
+        for (let i = 0; i < buffer.length; i++) {
+          const sample = (buffer[i] - 128) / 128
           sum += sample * sample
         }
-        const rms = Math.sqrt(sum / data.length)
+        const rms = Math.sqrt(sum / buffer.length)
 
         if (rms >= NOISE_GATE) {
           lastActiveRef.current[sid] = now
         }
 
         const timeSinceLast = now - (lastActiveRef.current[sid] || 0)
-        next[sid] = timeSinceLast < HOLD_MS
+        const isSpeaking = timeSinceLast < HOLD_MS
+
+        if (prevSpeakingRef.current[sid] !== isSpeaking) {
+          changed = true
+        }
+        prevSpeakingRef.current[sid] = isSpeaking
       })
 
-      setSpeaking(next)
+      if (changed) {
+        setSpeaking({ ...prevSpeakingRef.current })
+      }
+
       rafRef.current = requestAnimationFrame(tick)
     }
 

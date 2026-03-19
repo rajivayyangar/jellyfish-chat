@@ -14,8 +14,11 @@ export default function VideoTile({ participant, isSpeaking = false }: VideoTile
     if (!el) return
 
     if (participant.videoTrack && participant.video) {
-      el.srcObject = new MediaStream([participant.videoTrack])
-      el.play().catch(() => {})
+      const existing = el.srcObject as MediaStream | null
+      if (!existing || existing.getVideoTracks()[0]?.id !== participant.videoTrack.id) {
+        el.srcObject = new MediaStream([participant.videoTrack])
+        el.play().catch(() => {})
+      }
     } else {
       el.srcObject = null
     }

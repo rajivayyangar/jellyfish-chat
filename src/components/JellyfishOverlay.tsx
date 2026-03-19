@@ -105,16 +105,6 @@ function AnimatedCreature({ c }: { c: Creature }) {
 export default function JellyfishOverlay({ creatures }: Props) {
   return (
     <>
-      <style>{`
-        @keyframes jellyBob {
-          0% { transform: translateY(0px) rotate(-5deg); }
-          100% { transform: translateY(-8px) rotate(5deg); }
-        }
-        @keyframes fishSwim {
-          0% { transform: translateY(0px) translateX(-3px) rotate(-3deg); }
-          100% { transform: translateY(-4px) translateX(3px) rotate(3deg); }
-        }
-      `}</style>
       {creatures.map((c) => (
         <AnimatedCreature key={c.id} c={c} />
       ))}

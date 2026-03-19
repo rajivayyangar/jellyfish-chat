@@ -1,4 +1,4 @@
-import { CreatureType } from '../hooks/useJellyfish'
+import { CreatureType, CREATURE_EMOJI } from '../hooks/useJellyfish'
 
 interface CallControlsProps {
   localIsMuted: boolean
@@ -9,12 +9,9 @@ interface CallControlsProps {
   onLeave: () => void
 }
 
-const CREATURE_BUTTONS: { type: CreatureType; emoji: string; label: string }[] =
-  [
-    { type: 'jellyfish', emoji: '🪼', label: 'Release a jellyfish!' },
-    { type: 'seahorse', emoji: '🦑', label: 'Release a seahorse!' },
-    { type: 'fish', emoji: '🐠', label: 'Release a fish!' },
-  ]
+const CREATURE_BUTTONS = (Object.keys(CREATURE_EMOJI) as CreatureType[]).map(
+  (type) => ({ type, emoji: CREATURE_EMOJI[type], label: `Release a ${type}!` }),
+)
 
 export default function CallControls({
   localIsMuted,

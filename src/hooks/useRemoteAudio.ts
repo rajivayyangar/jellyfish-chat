@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { DailyCall } from '@daily-co/daily-js'
+import { extractAudioTrack } from './dailyUtils'
 
 /**
  * Creates <audio> elements for remote participants so you can hear them.
@@ -19,8 +20,7 @@ export function useRemoteAudio(callObject: DailyCall | null) {
         if (id === 'local') continue
         remoteIds.add(p.session_id)
 
-        const audioTrack =
-          p.tracks?.audio?.persistentTrack ?? p.tracks?.audio?.track ?? null
+        const audioTrack = extractAudioTrack(p)
 
         if (audioTrack && audioTrack.readyState === 'live') {
           let el = audioEls.current.get(p.session_id)
