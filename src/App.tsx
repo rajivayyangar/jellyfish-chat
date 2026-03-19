@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { useDailyCall } from './hooks/useDailyCall'
 import { useCreatures } from './hooks/useJellyfish'
 import { useRemoteAudio } from './hooks/useRemoteAudio'
+import { useAudioLevels } from './hooks/useAudioLevels'
 import VideoTile from './components/VideoTile'
 import CallControls from './components/CallControls'
 import JellyfishOverlay from './components/JellyfishOverlay'
@@ -84,6 +85,7 @@ function CallScreen({
 
   const { creatures, spawnCreature } = useCreatures(callObject)
   useRemoteAudio(callObject)
+  const speaking = useAudioLevels(callObject)
 
   const handleLeave = useCallback(() => {
     onLeave()
@@ -110,7 +112,7 @@ function CallScreen({
         {/* Remote participant (main view) or waiting message */}
         <div className="w-full h-full">
           {remoteParticipant ? (
-            <VideoTile participant={remoteParticipant} />
+            <VideoTile participant={remoteParticipant} isSpeaking={speaking[remoteParticipant.sessionId]} />
           ) : (
             <div className="w-full h-full rounded-2xl bg-jelly-dark/50 border border-white/5 flex items-center justify-center">
               <div className="text-center space-y-3">
@@ -125,8 +127,8 @@ function CallScreen({
 
         {/* Local participant (picture-in-picture) */}
         {localParticipant && (
-          <div className="absolute bottom-5 right-5 w-28 h-40 sm:w-36 sm:h-48 rounded-xl overflow-hidden shadow-lg border-2 border-jelly-blue/20">
-            <VideoTile participant={localParticipant} />
+          <div className={`absolute bottom-5 right-5 w-28 h-40 sm:w-36 sm:h-48 rounded-xl overflow-hidden shadow-lg border-2 transition-colors duration-200 ${speaking[localParticipant.sessionId] ? 'border-white' : 'border-jelly-blue/20'}`}>
+            <VideoTile participant={localParticipant} isSpeaking={speaking[localParticipant.sessionId]} />
           </div>
         )}
       </div>

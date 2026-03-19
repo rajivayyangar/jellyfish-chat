@@ -3,9 +3,10 @@ import { Participant } from '../hooks/useDailyCall'
 
 interface VideoTileProps {
   participant: Participant
+  isSpeaking?: boolean
 }
 
-export default function VideoTile({ participant }: VideoTileProps) {
+export default function VideoTile({ participant, isSpeaking = false }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
 
   useEffect(() => {
@@ -28,7 +29,7 @@ export default function VideoTile({ participant }: VideoTileProps) {
     .slice(0, 2)
 
   return (
-    <div className="relative w-full h-full rounded-2xl overflow-hidden bg-jelly-dark">
+    <div className={`relative w-full h-full rounded-2xl overflow-hidden bg-jelly-dark border-2 transition-colors duration-200 ${isSpeaking ? 'border-white' : 'border-transparent'}`}>
       {participant.video && participant.videoTrack ? (
         <video
           ref={videoRef}
