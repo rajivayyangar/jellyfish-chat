@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useDailyCall } from './hooks/useDailyCall'
 import { useCreatures } from './hooks/useJellyfish'
 import { useRemoteAudio } from './hooks/useRemoteAudio'
@@ -9,56 +9,107 @@ import JellyfishOverlay from './components/JellyfishOverlay'
 
 const ROOM_URL = import.meta.env.VITE_DAILY_ROOM_URL as string | undefined
 
+function spawnSparkles(container: HTMLElement) {
+  const rect = container.getBoundingClientRect()
+  const cx = rect.left + rect.width / 2
+  const cy = rect.top + rect.height / 2
+
+  for (let i = 0; i < 18; i++) {
+    const sparkle = document.createElement('div')
+    sparkle.textContent = ['✨', '⭐', '💫', '🌟'][Math.floor(Math.random() * 4)]
+    sparkle.style.cssText = `
+      position: fixed; pointer-events: none; z-index: 9999;
+      left: ${cx}px; top: ${cy}px; font-size: ${12 + Math.random() * 14}px;
+    `
+    document.body.appendChild(sparkle)
+
+    const angle = (Math.PI * 2 * i) / 18 + (Math.random() - 0.5) * 0.5
+    const dist = 60 + Math.random() * 80
+    const tx = Math.cos(angle) * dist
+    const ty = Math.sin(angle) * dist
+
+    sparkle.animate(
+      [
+        { transform: 'translate(-50%, -50%) scale(0)', opacity: 1 },
+        { transform: `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(1.2)`, opacity: 1, offset: 0.4 },
+        { transform: `translate(calc(-50% + ${tx * 1.3}px), calc(-50% + ${ty * 1.3 + 20}px)) scale(0)`, opacity: 0 },
+      ],
+      { duration: 800 + Math.random() * 400, easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)', fill: 'forwards' },
+    ).onfinish = () => sparkle.remove()
+  }
+}
+
 function LobbyScreen({
   onJoin,
 }: {
   onJoin: (name: string, room: string) => void
 }) {
-  const [name, setName] = useState(() => sessionStorage.getItem('jf-name') || '')
-  const [room, setRoom] = useState(ROOM_URL || '')
+  const [room] = useState(ROOM_URL || '')
+  const [ellieAnimating, setEllieAnimating] = useState(false)
+  const ellieRef = useRef<HTMLButtonElement>(null)
 
-  const handleJoin = () => {
-    if (!name.trim() || !room.trim()) return
-    sessionStorage.setItem('jf-name', name.trim())
-    onJoin(name.trim(), room.trim())
+  const handleJoin = (name: string) => {
+    if (!room) return
+    sessionStorage.setItem('jf-name', name)
+    onJoin(name, room)
+  }
+
+  const handleEllie = () => {
+    if (ellieAnimating) return
+    setEllieAnimating(true)
+
+    if (ellieRef.current) {
+      spawnSparkles(ellieRef.current)
+      ellieRef.current.animate(
+        [
+          { transform: 'scale(1) rotate(0deg)' },
+          { transform: 'scale(1.15) rotate(-8deg)', offset: 0.1 },
+          { transform: 'scale(0.9) rotate(10deg)', offset: 0.25 },
+          { transform: 'scale(1.2) rotate(-6deg)', offset: 0.4 },
+          { transform: 'scale(0.95) rotate(8deg)', offset: 0.55 },
+          { transform: 'scale(1.1) rotate(-4deg)', offset: 0.7 },
+          { transform: 'scale(1.05) rotate(2deg)', offset: 0.85 },
+          { transform: 'scale(1) rotate(0deg)' },
+        ],
+        { duration: 1400, easing: 'ease-in-out' },
+      ).onfinish = () => {
+        setEllieAnimating(false)
+        handleJoin('Ellie')
+      }
+    }
   }
 
   return (
     <div className="h-full flex items-center justify-center bg-jelly-dark p-4">
-      <div className="w-full max-w-sm space-y-6 text-center">
+      <div className="w-full max-w-sm space-y-8 text-center">
         <div className="text-6xl mb-2">🪼</div>
         <h1 className="text-3xl font-bold text-jelly-yellow">Jellyfish Chat</h1>
-        <p className="text-jelly-blue/70 text-sm">A cozy video call for two</p>
+        <p className="text-jelly-blue/70 text-sm">Who's joining?</p>
 
-        <div className="space-y-3">
-          <input
-            type="text"
-            placeholder="Your name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
-            className="w-full px-4 py-3 rounded-xl bg-white/10 text-white placeholder-white/40 outline-none focus:ring-2 focus:ring-jelly-blue/50 text-center"
-            autoFocus
-          />
-          {!ROOM_URL && (
-            <input
-              type="text"
-              placeholder="Daily.co room URL"
-              value={room}
-              onChange={(e) => setRoom(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
-              className="w-full px-4 py-3 rounded-xl bg-white/10 text-white placeholder-white/40 outline-none focus:ring-2 focus:ring-jelly-blue/50 text-center text-sm"
-            />
-          )}
+        <div className="flex gap-4 justify-center">
+          <button
+            onClick={() => handleJoin('Rajiv')}
+            className="flex-1 py-4 rounded-2xl bg-jelly-blue/20 hover:bg-jelly-blue/40 text-white font-semibold text-xl transition-colors border-2 border-jelly-blue/30 active:scale-95"
+          >
+            Rajiv
+          </button>
+          <button
+            ref={ellieRef}
+            onClick={handleEllie}
+            className="flex-1 py-4 rounded-2xl bg-jelly-yellow/20 hover:bg-jelly-yellow/40 text-white font-semibold text-xl transition-colors border-2 border-jelly-yellow/30"
+          >
+            Ellie
+          </button>
         </div>
 
-        <button
-          onClick={handleJoin}
-          disabled={!name.trim() || !room.trim()}
-          className="w-full py-3 rounded-xl bg-jelly-blue text-jelly-dark font-semibold text-lg hover:bg-jelly-blue/80 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        >
-          Join
-        </button>
+        {!ROOM_URL && (
+          <input
+            type="text"
+            placeholder="Daily.co room URL"
+            defaultValue={room}
+            className="w-full px-4 py-3 rounded-xl bg-white/10 text-white placeholder-white/40 outline-none focus:ring-2 focus:ring-jelly-blue/50 text-center text-sm"
+          />
+        )}
       </div>
     </div>
   )

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useMemo } from 'react'
 import { Creature, CREATURE_EMOJI } from '../hooks/useJellyfish'
 
 interface Props {
@@ -7,91 +7,97 @@ interface Props {
 
 function AnimatedCreature({ c }: { c: Creature }) {
   const emoji = CREATURE_EMOJI[c.type] || '🪼'
-  const totalDuration = c.segments.reduce((sum, s) => sum + s.duration, 0)
+  const outerRef = useRef<HTMLDivElement>(null)
 
-  const [style, setStyle] = useState<React.CSSProperties>({
-    position: 'fixed',
-    left: `${c.x}vw`,
-    top: `${c.y}vh`,
-    fontSize: `${c.size}px`,
-    opacity: 0,
-    transform: 'scale(0.67)',
-    transition: 'none',
-    pointerEvents: 'none',
-    zIndex: 9999,
-    filter: 'drop-shadow(0 0 8px rgba(159, 191, 255, 0.4))',
-  })
+  // Stable random bob duration (computed once per creature)
+  const bobDuration = useMemo(() => 1.5 + Math.random() * 1, [])
 
   useEffect(() => {
-    let currentX = c.x
-    let currentY = c.y
-    let segmentIndex = 0
-    const timers: number[] = []
+    const el = outerRef.current
+    if (!el) return
 
-    // Fade in + start growing
-    const fadeInTimer = window.setTimeout(() => {
-      setStyle((prev) => ({
-        ...prev,
-        opacity: 0.85,
-        transform: 'scale(0.67)',
-        transition: 'opacity 0.8s ease-in',
-      }))
-    }, 50)
-    timers.push(fadeInTimer)
+    // Build keyframes from segments using transform (compositor-friendly)
+    const totalDuration = c.segments.reduce((sum, s) => sum + s.duration, 0)
+    const totalMs = totalDuration * 1000
 
-    // Grow to full size over first ~3 seconds
-    const growTimer = window.setTimeout(() => {
-      setStyle((prev) => ({
-        ...prev,
-        transform: 'scale(1)',
-        transition: `${prev.transition}, transform 3s ease-out`,
-      }))
-    }, 300)
-    timers.push(growTimer)
+    // Fade-in takes 800ms, grow takes 3s from start
+    const fadeInFraction = Math.min(800 / totalMs, 0.15)
+    const growFraction = Math.min(3000 / totalMs, 0.5)
 
-    let elapsed = 800
+    const keyframes: Keyframe[] = []
+    let currentX = 0 // offsets from starting position (in vw)
+    let currentY = 0
+    let cumulativeTime = 0
 
-    for (const segment of c.segments) {
-      const targetX = currentX + segment.dx
-      const targetY = currentY + segment.dy
-      const dur = segment.duration
-      const isLast = segmentIndex === c.segments.length - 1
+    // Start: invisible, small
+    keyframes.push({
+      transform: `translate(0vw, 0vh) scale(0.67)`,
+      opacity: 0,
+      offset: 0,
+    })
 
-      const capturedX = targetX
-      const capturedY = targetY
-      const capturedDur = dur
+    // Fade in (at fadeInFraction of total)
+    keyframes.push({
+      transform: `translate(0vw, 0vh) scale(0.67)`,
+      opacity: 0.85,
+      offset: fadeInFraction,
+    })
 
-      const timer = window.setTimeout(() => {
-        setStyle((prev) => ({
-          ...prev,
-          left: `${capturedX}vw`,
-          top: `${capturedY}vh`,
-          opacity: isLast ? 0 : 0.85,
-          transition: `left ${capturedDur}s ease-in-out, top ${capturedDur}s ease-in-out, opacity ${isLast ? capturedDur : 0.3}s ease-in-out, transform 3s ease-out`,
-        }))
-      }, elapsed)
-      timers.push(timer)
+    // Each drift segment
+    for (let i = 0; i < c.segments.length; i++) {
+      const seg = c.segments[i]
+      currentX += seg.dx
+      currentY += seg.dy
+      cumulativeTime += seg.duration
 
-      elapsed += dur * 1000
-      currentX = targetX
-      currentY = targetY
-      segmentIndex++
+      const offset = cumulativeTime / totalDuration
+      const isLast = i === c.segments.length - 1
+      // Scale grows from 0.67 to 1.0 over the growFraction period
+      const scale = offset >= growFraction ? 1 : 0.67 + 0.33 * (offset / growFraction)
+
+      keyframes.push({
+        transform: `translate(${currentX}vw, ${currentY}vh) scale(${scale.toFixed(3)})`,
+        opacity: isLast ? 0 : 0.85,
+        offset: Math.min(offset, 1),
+      })
     }
 
+    const animation = el.animate(keyframes, {
+      duration: totalMs,
+      easing: 'ease-in-out',
+      fill: 'forwards',
+    })
+
     return () => {
-      timers.forEach((t) => clearTimeout(t))
+      animation.cancel()
     }
   }, [c])
 
-  const bobDuration = 1.5 + Math.random() * 1
-  const bobAnimation =
-    c.type === 'fish'
-      ? `fishSwim ${bobDuration}s ease-in-out infinite alternate`
-      : `jellyBob ${bobDuration}s ease-in-out infinite alternate`
-
   return (
-    <div style={style}>
-      <div style={{ animation: bobAnimation }}>{emoji}</div>
+    <div
+      ref={outerRef}
+      style={{
+        position: 'fixed',
+        left: `${c.x}vw`,
+        top: `${c.y}vh`,
+        fontSize: `${c.size}px`,
+        opacity: 0,
+        pointerEvents: 'none',
+        zIndex: 9999,
+        filter: 'drop-shadow(0 0 8px rgba(159, 191, 255, 0.4))',
+        willChange: 'transform, opacity',
+      }}
+    >
+      <div
+        style={{
+          animation:
+            c.type === 'fish'
+              ? `fishSwim ${bobDuration}s ease-in-out infinite alternate`
+              : `jellyBob ${bobDuration}s ease-in-out infinite alternate`,
+        }}
+      >
+        {emoji}
+      </div>
     </div>
   )
 }
