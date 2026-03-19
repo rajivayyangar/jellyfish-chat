@@ -18,7 +18,7 @@ export function useAudioLevels(callObject: DailyCall | null) {
   const lastActiveRef = useRef<Record<string, number>>({})
   const prevSpeakingRef = useRef<Record<string, boolean>>({})
   const rafRef = useRef<number>(0)
-  const bufferRef = useRef<Uint8Array | null>(null)
+  const bufferRef = useRef<Uint8Array<ArrayBuffer> | null>(null)
 
   useEffect(() => {
     if (!callObject) return
