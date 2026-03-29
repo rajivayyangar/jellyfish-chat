@@ -109,7 +109,7 @@ export default function CallControls({
               ? 'bg-jelly-red text-white'
               : 'bg-white/10 text-white hover:bg-white/20'
           }`}
-          title={localIsMuted ? 'Unmute' : 'Mute'}
+          title={localIsMuted ? 'unmute' : 'mute'}
         >
           {localIsMuted ? '🔇' : '🎙️'}
         </button>
@@ -140,7 +140,7 @@ export default function CallControls({
               ? 'bg-jelly-red text-white'
               : 'bg-white/10 text-white hover:bg-white/20'
           }`}
-          title={localCameraOff ? 'Turn on camera' : 'Turn off camera'}
+          title={localCameraOff ? 'turn on video' : 'turn off video'}
         >
           {localCameraOff ? '📷' : '📹'}
         </button>
@@ -167,7 +167,7 @@ export default function CallControls({
         <button
           onClick={() => toggleDropdown('speaker')}
           className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
-          title="Select speaker"
+          title="select speaker device"
         >
           🔊
         </button>
