@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { useDailyCall } from './hooks/useDailyCall'
+import { useDevices } from './hooks/useDevices'
 import { useCreatures } from './hooks/useJellyfish'
 import { useRemoteAudio } from './hooks/useRemoteAudio'
 import { useAudioLevels } from './hooks/useAudioLevels'
@@ -135,6 +136,7 @@ function CallScreen({
     callObject,
   } = useDailyCall(roomUrl, userName)
 
+  const devices = useDevices(callObject)
   const { creatures, spawnCreature } = useCreatures(callObject)
   useRemoteAudio(callObject)
   const speaking = useAudioLevels(callObject)
@@ -187,6 +189,15 @@ function CallScreen({
         onToggleCamera={toggleCamera}
         onSpawnCreature={spawnCreature}
         onLeave={onLeave}
+        mics={devices.mics}
+        cameras={devices.cameras}
+        speakers={devices.speakers}
+        selectedMic={devices.selectedMic}
+        selectedCamera={devices.selectedCamera}
+        selectedSpeaker={devices.selectedSpeaker}
+        onSelectMic={devices.setMic}
+        onSelectCamera={devices.setCamera}
+        onSelectSpeaker={devices.setSpeaker}
       />
 
       {/* Jellyfish overlay */}
