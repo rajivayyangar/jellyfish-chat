@@ -1,6 +1,32 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, ReactNode, useCallback } from 'react'
 import { CreatureType, CREATURE_EMOJI } from '../hooks/useJellyfish'
 import { DeviceInfo } from '../hooks/useDevices'
+
+function Tooltip({ text, children }: { text: string; children: ReactNode }) {
+  const [visible, setVisible] = useState(false)
+  const timerRef = useRef<number>(0)
+
+  const show = useCallback(() => {
+    timerRef.current = window.setTimeout(() => setVisible(true), 300)
+  }, [])
+  const hide = useCallback(() => {
+    clearTimeout(timerRef.current)
+    setVisible(false)
+  }, [])
+
+  useEffect(() => () => clearTimeout(timerRef.current), [])
+
+  return (
+    <div className="relative" onMouseEnter={show} onMouseLeave={hide}>
+      {children}
+      {visible && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded-md bg-gray-900 text-white text-xs whitespace-nowrap pointer-events-none z-50">
+          {text}
+        </div>
+      )}
+    </div>
+  )
+}
 
 interface CallControlsProps {
   localIsMuted: boolean
@@ -102,25 +128,27 @@ export default function CallControls({
     <div className="flex items-center justify-center gap-2 sm:gap-3 p-4">
       {/* Mute + mic selector */}
       <div className="relative flex items-center">
-        <button
-          onClick={onToggleMute}
-          className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-lg transition-colors ${
-            localIsMuted
-              ? 'bg-jelly-red text-white'
-              : 'bg-white/10 text-white hover:bg-white/20'
-          }`}
-          title={localIsMuted ? 'unmute' : 'mute'}
-        >
-          {localIsMuted ? '🔇' : '🎙️'}
-        </button>
-        {mics.length > 1 && (
+        <Tooltip text={localIsMuted ? 'unmute' : 'mute'}>
           <button
-            onClick={() => toggleDropdown('mic')}
-            className="ml-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] bg-white/10 text-white/60 hover:bg-white/20 transition-colors"
-            title="Select microphone"
+            onClick={onToggleMute}
+            className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-lg transition-colors ${
+              localIsMuted
+                ? 'bg-jelly-red text-white'
+                : 'bg-white/10 text-white hover:bg-white/20'
+            }`}
           >
-            ▾
+            {localIsMuted ? '🔇' : '🎙️'}
           </button>
+        </Tooltip>
+        {mics.length > 1 && (
+          <Tooltip text="select microphone">
+            <button
+              onClick={() => toggleDropdown('mic')}
+              className="ml-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] bg-white/10 text-white/60 hover:bg-white/20 transition-colors"
+            >
+              ▾
+            </button>
+          </Tooltip>
         )}
         <DeviceDropdown
           devices={mics}
@@ -133,25 +161,27 @@ export default function CallControls({
 
       {/* Camera + camera selector */}
       <div className="relative flex items-center">
-        <button
-          onClick={onToggleCamera}
-          className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-lg transition-colors ${
-            localCameraOff
-              ? 'bg-jelly-red text-white'
-              : 'bg-white/10 text-white hover:bg-white/20'
-          }`}
-          title={localCameraOff ? 'turn on video' : 'turn off video'}
-        >
-          {localCameraOff ? '📷' : '📹'}
-        </button>
-        {cameras.length > 1 && (
+        <Tooltip text={localCameraOff ? 'turn on video' : 'turn off video'}>
           <button
-            onClick={() => toggleDropdown('camera')}
-            className="ml-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] bg-white/10 text-white/60 hover:bg-white/20 transition-colors"
-            title="Select camera"
+            onClick={onToggleCamera}
+            className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-lg transition-colors ${
+              localCameraOff
+                ? 'bg-jelly-red text-white'
+                : 'bg-white/10 text-white hover:bg-white/20'
+            }`}
           >
-            ▾
+            {localCameraOff ? '📷' : '📹'}
           </button>
+        </Tooltip>
+        {cameras.length > 1 && (
+          <Tooltip text="select camera">
+            <button
+              onClick={() => toggleDropdown('camera')}
+              className="ml-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] bg-white/10 text-white/60 hover:bg-white/20 transition-colors"
+            >
+              ▾
+            </button>
+          </Tooltip>
         )}
         <DeviceDropdown
           devices={cameras}
@@ -164,13 +194,14 @@ export default function CallControls({
 
       {/* Speaker selector */}
       <div className="relative flex items-center">
-        <button
-          onClick={() => toggleDropdown('speaker')}
-          className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
-          title="select speaker device"
-        >
-          🔊
-        </button>
+        <Tooltip text="select speaker device">
+          <button
+            onClick={() => toggleDropdown('speaker')}
+            className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
+          >
+            🔊
+          </button>
+        </Tooltip>
         <DeviceDropdown
           devices={speakers}
           selectedId={selectedSpeaker}
@@ -182,24 +213,25 @@ export default function CallControls({
 
       {/* Creature buttons */}
       {CREATURE_BUTTONS.map(({ type, emoji, label }) => (
-        <button
-          key={type}
-          onClick={() => onSpawnCreature(type)}
-          className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-xl sm:text-2xl bg-jelly-blue/20 hover:bg-jelly-blue/40 transition-colors border-2 border-jelly-blue/30 active:scale-90"
-          title={label}
-        >
-          {emoji}
-        </button>
+        <Tooltip key={type} text={label}>
+          <button
+            onClick={() => onSpawnCreature(type)}
+            className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-xl sm:text-2xl bg-jelly-blue/20 hover:bg-jelly-blue/40 transition-colors border-2 border-jelly-blue/30 active:scale-90"
+          >
+            {emoji}
+          </button>
+        </Tooltip>
       ))}
 
       {/* Leave */}
-      <button
-        onClick={onLeave}
-        className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-jelly-red hover:bg-red-600 text-white text-sm font-medium transition-colors"
-        title="Leave call"
-      >
-        ✕
-      </button>
+      <Tooltip text="leave call">
+        <button
+          onClick={onLeave}
+          className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-jelly-red hover:bg-red-600 text-white text-sm font-medium transition-colors"
+        >
+          ✕
+        </button>
+      </Tooltip>
     </div>
   )
 }
