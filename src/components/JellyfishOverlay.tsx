@@ -45,6 +45,7 @@ function AnimatedCreature({ c }: { c: Creature }) {
   const emoji = CREATURE_EMOJI[c.type] || '🪼'
   const outerRef = useRef<HTMLDivElement>(null)
   const innerRef = useRef<HTMLDivElement>(null)
+  const driftAnimRef = useRef<Animation | null>(null)
   const [reacting, setReacting] = useState(false)
 
   // Stable random bob duration (computed once per creature)
@@ -53,12 +54,17 @@ function AnimatedCreature({ c }: { c: Creature }) {
   const handleTap = useCallback(() => {
     if (reacting || !innerRef.current) return
     setReacting(true)
+    // Pause the drift so the creature stays in place
+    driftAnimRef.current?.pause()
     const keyframes = TAP_ANIMATIONS[Math.floor(Math.random() * TAP_ANIMATIONS.length)]
     const anim = innerRef.current.animate(keyframes, {
       duration: 2000,
       easing: 'ease-in-out',
     })
-    anim.onfinish = () => setReacting(false)
+    anim.onfinish = () => {
+      driftAnimRef.current?.play()
+      setReacting(false)
+    }
   }, [reacting])
 
   useEffect(() => {
@@ -116,9 +122,11 @@ function AnimatedCreature({ c }: { c: Creature }) {
       easing: 'ease-in-out',
       fill: 'forwards',
     })
+    driftAnimRef.current = animation
 
     return () => {
       animation.cancel()
+      driftAnimRef.current = null
     }
   }, [c])
 
