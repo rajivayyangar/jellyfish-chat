@@ -137,7 +137,7 @@ function CallScreen({
   } = useDailyCall(roomUrl, userName)
 
   const devices = useDevices(callObject)
-  const { creatures, spawnCreature } = useCreatures(callObject)
+  const { creatures, spawnCreature, tapCreature, pendingTaps, consumeTap } = useCreatures(callObject)
   useRemoteAudio(callObject)
   const speaking = useAudioLevels(callObject)
 
@@ -201,7 +201,12 @@ function CallScreen({
       />
 
       {/* Jellyfish overlay */}
-      <JellyfishOverlay creatures={creatures} />
+      <JellyfishOverlay
+        creatures={creatures}
+        pendingTaps={pendingTaps}
+        onTap={tapCreature}
+        onConsumeTap={consumeTap}
+      />
     </div>
   )
 }

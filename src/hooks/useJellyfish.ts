@@ -41,8 +41,14 @@ function createCreature(type: CreatureType): Creature {
   return { id, type, x, y, createdAt: Date.now(), segments, size }
 }
 
+export interface CreatureTap {
+  creatureId: string
+  animIndex: number
+}
+
 export function useCreatures(callObject: DailyCall | null) {
   const [creatures, setCreatures] = useState<Creature[]>([])
+  const [pendingTaps, setPendingTaps] = useState<CreatureTap[]>([])
   const cleanupTimers = useRef<Map<string, number>>(new Map())
 
   const addCreature = useCallback((c: Creature) => {
@@ -71,12 +77,34 @@ export function useCreatures(callObject: DailyCall | null) {
     [callObject, addCreature],
   )
 
+  const tapCreature = useCallback(
+    (creatureId: string, animIndex: number) => {
+      if (callObject) {
+        callObject.sendAppMessage(
+          { type: 'creature-tap', creatureId, animIndex },
+          '*',
+        )
+      }
+    },
+    [callObject],
+  )
+
+  const consumeTap = useCallback((creatureId: string) => {
+    setPendingTaps((prev) => prev.filter((t) => t.creatureId !== creatureId))
+  }, [])
+
   useEffect(() => {
     if (!callObject) return
 
     const handler = (event: any) => {
       if (event?.data?.type === 'creature') {
         addCreature(event.data.creature)
+      }
+      if (event?.data?.type === 'creature-tap') {
+        setPendingTaps((prev) => [
+          ...prev,
+          { creatureId: event.data.creatureId, animIndex: event.data.animIndex },
+        ])
       }
       // backwards compat with old jellyfish messages
       if (event?.data?.type === 'jellyfish') {
@@ -96,5 +124,5 @@ export function useCreatures(callObject: DailyCall | null) {
     }
   }, [])
 
-  return { creatures, spawnCreature }
+  return { creatures, spawnCreature, tapCreature, pendingTaps, consumeTap }
 }

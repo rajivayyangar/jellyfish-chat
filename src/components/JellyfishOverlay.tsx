@@ -1,8 +1,11 @@
 import { useEffect, useRef, useMemo, useCallback, useState } from 'react'
-import { Creature, CREATURE_EMOJI } from '../hooks/useJellyfish'
+import { Creature, CreatureTap, CREATURE_EMOJI } from '../hooks/useJellyfish'
 
 interface Props {
   creatures: Creature[]
+  pendingTaps: CreatureTap[]
+  onTap: (creatureId: string, animIndex: number) => void
+  onConsumeTap: (creatureId: string) => void
 }
 
 const TAP_ANIMATIONS: Keyframe[][] = [
@@ -41,12 +44,23 @@ const TAP_ANIMATIONS: Keyframe[][] = [
   ],
 ]
 
-function AnimatedCreature({ c }: { c: Creature }) {
+function AnimatedCreature({
+  c,
+  remoteTap,
+  onTap,
+  onConsumeTap,
+}: {
+  c: Creature
+  remoteTap: CreatureTap | undefined
+  onTap: (creatureId: string, animIndex: number) => void
+  onConsumeTap: (creatureId: string) => void
+}) {
   const emoji = CREATURE_EMOJI[c.type] || '🪼'
   const outerRef = useRef<HTMLDivElement>(null)
   const innerRef = useRef<HTMLDivElement>(null)
   const driftAnimRef = useRef<Animation | null>(null)
-  const [reacting, setReacting] = useState(false)
+  const reactingRef = useRef(false)
+  const [, forceUpdate] = useState(0)
 
   // Stable random bob duration (computed once per creature)
   const bobDuration = useMemo(() => 1.5 + Math.random() * 1, [])
@@ -121,42 +135,62 @@ function AnimatedCreature({ c }: { c: Creature }) {
     }
   }, [])
 
-  const handleTap = useCallback(() => {
-    if (reacting || !innerRef.current) return
-    setReacting(true)
-    driftAnimRef.current?.pause()
+  const playReaction = useCallback(
+    (animIndex: number) => {
+      if (reactingRef.current || !innerRef.current) return
+      reactingRef.current = true
+      forceUpdate((n) => n + 1)
+      driftAnimRef.current?.pause()
 
-    if (c.type === 'seahorse') {
-      // Squid: stay 2s, then squirt ink and resume
-      setTimeout(() => {
-        spawnInkCloud()
-        driftAnimRef.current?.play()
-        setReacting(false)
-      }, 2000)
-    } else if (c.type === 'fish') {
-      // Fish: wiggle for 2s, then blow bubbles and resume
-      const wiggle = TAP_ANIMATIONS[2] // wiggle keyframes
-      const anim = innerRef.current.animate(wiggle, {
-        duration: 2000,
-        easing: 'ease-in-out',
-      })
-      anim.onfinish = () => {
-        spawnBubbles()
-        driftAnimRef.current?.play()
-        setReacting(false)
+      if (c.type === 'seahorse') {
+        setTimeout(() => {
+          spawnInkCloud()
+          driftAnimRef.current?.play()
+          reactingRef.current = false
+          forceUpdate((n) => n + 1)
+        }, 2000)
+      } else if (c.type === 'fish') {
+        const wiggle = TAP_ANIMATIONS[2]
+        const anim = innerRef.current.animate(wiggle, {
+          duration: 2000,
+          easing: 'ease-in-out',
+        })
+        anim.onfinish = () => {
+          spawnBubbles()
+          driftAnimRef.current?.play()
+          reactingRef.current = false
+          forceUpdate((n) => n + 1)
+        }
+      } else {
+        const keyframes = TAP_ANIMATIONS[animIndex % TAP_ANIMATIONS.length]
+        const anim = innerRef.current.animate(keyframes, {
+          duration: 2000,
+          easing: 'ease-in-out',
+        })
+        anim.onfinish = () => {
+          driftAnimRef.current?.play()
+          reactingRef.current = false
+          forceUpdate((n) => n + 1)
+        }
       }
-    } else {
-      const keyframes = TAP_ANIMATIONS[Math.floor(Math.random() * TAP_ANIMATIONS.length)]
-      const anim = innerRef.current.animate(keyframes, {
-        duration: 2000,
-        easing: 'ease-in-out',
-      })
-      anim.onfinish = () => {
-        driftAnimRef.current?.play()
-        setReacting(false)
-      }
+    },
+    [c.type, spawnInkCloud, spawnBubbles],
+  )
+
+  const handleTap = useCallback(() => {
+    if (reactingRef.current) return
+    const animIndex = Math.floor(Math.random() * TAP_ANIMATIONS.length)
+    onTap(c.id, animIndex)
+    playReaction(animIndex)
+  }, [c.id, onTap, playReaction])
+
+  // React to remote taps
+  useEffect(() => {
+    if (remoteTap) {
+      onConsumeTap(c.id)
+      playReaction(remoteTap.animIndex)
     }
-  }, [reacting, c.type, spawnInkCloud, spawnBubbles])
+  }, [remoteTap, c.id, onConsumeTap, playReaction])
 
   useEffect(() => {
     const el = outerRef.current
@@ -253,11 +287,17 @@ function AnimatedCreature({ c }: { c: Creature }) {
   )
 }
 
-export default function JellyfishOverlay({ creatures }: Props) {
+export default function JellyfishOverlay({ creatures, pendingTaps, onTap, onConsumeTap }: Props) {
   return (
     <>
       {creatures.map((c) => (
-        <AnimatedCreature key={c.id} c={c} />
+        <AnimatedCreature
+          key={c.id}
+          c={c}
+          remoteTap={pendingTaps.find((t) => t.creatureId === c.id)}
+          onTap={onTap}
+          onConsumeTap={onConsumeTap}
+        />
       ))}
     </>
   )
