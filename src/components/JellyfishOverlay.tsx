@@ -51,21 +51,62 @@ function AnimatedCreature({ c }: { c: Creature }) {
   // Stable random bob duration (computed once per creature)
   const bobDuration = useMemo(() => 1.5 + Math.random() * 1, [])
 
+  const spawnInkCloud = useCallback(() => {
+    const el = outerRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const cx = rect.left + rect.width / 2
+    const cy = rect.top + rect.height / 2
+    const radius = c.size * 3
+
+    const ink = document.createElement('div')
+    ink.style.cssText = `
+      position: fixed; pointer-events: none; z-index: 9998;
+      left: ${cx}px; top: ${cy}px;
+      width: ${radius * 2}px; height: ${radius * 2}px;
+      transform: translate(-50%, -50%) scale(0);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(10,10,15,0.85) 0%, rgba(20,20,30,0.6) 40%, rgba(30,30,40,0.3) 70%, transparent 100%);
+      filter: blur(8px);
+    `
+    document.body.appendChild(ink)
+
+    ink.animate(
+      [
+        { transform: 'translate(-50%, -50%) scale(0)', opacity: 1 },
+        { transform: 'translate(-50%, -50%) scale(0.6)', opacity: 0.9, offset: 0.15 },
+        { transform: 'translate(-50%, -50%) scale(1)', opacity: 0.7, offset: 0.3 },
+        { transform: 'translate(-50%, -50%) scale(1.1)', opacity: 0.4, offset: 0.6 },
+        { transform: 'translate(-50%, -50%) scale(1.2)', opacity: 0 },
+      ],
+      { duration: 5000, easing: 'ease-out', fill: 'forwards' },
+    ).onfinish = () => ink.remove()
+  }, [c.size])
+
   const handleTap = useCallback(() => {
     if (reacting || !innerRef.current) return
     setReacting(true)
-    // Pause the drift so the creature stays in place
     driftAnimRef.current?.pause()
-    const keyframes = TAP_ANIMATIONS[Math.floor(Math.random() * TAP_ANIMATIONS.length)]
-    const anim = innerRef.current.animate(keyframes, {
-      duration: 2000,
-      easing: 'ease-in-out',
-    })
-    anim.onfinish = () => {
-      driftAnimRef.current?.play()
-      setReacting(false)
+
+    if (c.type === 'seahorse') {
+      // Squid: stay 2s, then squirt ink and resume
+      setTimeout(() => {
+        spawnInkCloud()
+        driftAnimRef.current?.play()
+        setReacting(false)
+      }, 2000)
+    } else {
+      const keyframes = TAP_ANIMATIONS[Math.floor(Math.random() * TAP_ANIMATIONS.length)]
+      const anim = innerRef.current.animate(keyframes, {
+        duration: 2000,
+        easing: 'ease-in-out',
+      })
+      anim.onfinish = () => {
+        driftAnimRef.current?.play()
+        setReacting(false)
+      }
     }
-  }, [reacting])
+  }, [reacting, c.type, spawnInkCloud])
 
   useEffect(() => {
     const el = outerRef.current
