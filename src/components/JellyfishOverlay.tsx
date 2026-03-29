@@ -83,6 +83,44 @@ function AnimatedCreature({ c }: { c: Creature }) {
     ).onfinish = () => ink.remove()
   }, [c.size])
 
+  const spawnBubbles = useCallback(() => {
+    const el = outerRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const cx = rect.left + rect.width / 2
+    const cy = rect.top + rect.height * 0.3
+
+    const count = 4 + Math.floor(Math.random() * 3)
+    for (let i = 0; i < count; i++) {
+      const bubble = document.createElement('div')
+      const size = 6 + Math.random() * 10
+      const xDrift = (Math.random() - 0.5) * 40
+      const delay = i * 150 + Math.random() * 100
+      bubble.style.cssText = `
+        position: fixed; pointer-events: none; z-index: 9998;
+        left: ${cx + (Math.random() - 0.5) * 12}px;
+        top: ${cy}px;
+        width: ${size}px; height: ${size}px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, rgba(200,220,255,0.6), rgba(140,180,255,0.2));
+        border: 1px solid rgba(180,210,255,0.4);
+        opacity: 0;
+      `
+      document.body.appendChild(bubble)
+
+      bubble.animate(
+        [
+          { transform: `translate(-50%, 0) scale(0.5)`, opacity: 0, offset: 0 },
+          { transform: `translate(calc(-50% + ${xDrift * 0.3}px), -30px) scale(1)`, opacity: 0.8, offset: 0.15 },
+          { transform: `translate(calc(-50% + ${xDrift * 0.7}px), -80px) scale(1.05)`, opacity: 0.6, offset: 0.4 },
+          { transform: `translate(calc(-50% + ${xDrift}px), -150px) scale(0.9)`, opacity: 0.3, offset: 0.7 },
+          { transform: `translate(calc(-50% + ${xDrift * 1.1}px), -220px) scale(0.6)`, opacity: 0 },
+        ],
+        { duration: 5000, delay, easing: 'ease-out', fill: 'forwards' },
+      ).onfinish = () => bubble.remove()
+    }
+  }, [])
+
   const handleTap = useCallback(() => {
     if (reacting || !innerRef.current) return
     setReacting(true)
@@ -95,6 +133,18 @@ function AnimatedCreature({ c }: { c: Creature }) {
         driftAnimRef.current?.play()
         setReacting(false)
       }, 2000)
+    } else if (c.type === 'fish') {
+      // Fish: wiggle for 2s, then blow bubbles and resume
+      const wiggle = TAP_ANIMATIONS[2] // wiggle keyframes
+      const anim = innerRef.current.animate(wiggle, {
+        duration: 2000,
+        easing: 'ease-in-out',
+      })
+      anim.onfinish = () => {
+        spawnBubbles()
+        driftAnimRef.current?.play()
+        setReacting(false)
+      }
     } else {
       const keyframes = TAP_ANIMATIONS[Math.floor(Math.random() * TAP_ANIMATIONS.length)]
       const anim = innerRef.current.animate(keyframes, {
@@ -106,7 +156,7 @@ function AnimatedCreature({ c }: { c: Creature }) {
         setReacting(false)
       }
     }
-  }, [reacting, c.type, spawnInkCloud])
+  }, [reacting, c.type, spawnInkCloud, spawnBubbles])
 
   useEffect(() => {
     const el = outerRef.current
